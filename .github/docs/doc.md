@@ -1,4 +1,3 @@
-<!-- BEGIN_TF_DOCS -->
 <!-- THESE DOCS ARE GENERATED.  Update doc.md in the .github/docs directory to make changes.
 Update this file with the following command from the root of the repo:
 terraform-docs -c ./.github/docs/.terraform-docs.yml .

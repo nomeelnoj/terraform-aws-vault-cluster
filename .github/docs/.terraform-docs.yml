@@ -1,0 +1,15 @@
+formatter: markdown table
+header-from: .github/docs/doc.md
+sections:
+  show:
+    - header
+    - inputs
+    - outputs
+    - modules
+    - resources
+settings:
+  indent: 3
+  escape: false
+output:
+  file: README.md
+  mode: replace
