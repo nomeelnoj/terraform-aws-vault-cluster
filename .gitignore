@@ -1,0 +1,17 @@
+.DS_Store
+.idea
+*.iml
+*.swp
+**/.terraform
+*.tfstate*
+**/crash.log
+**/build
+run.sh
+
+# Commonly checked in files
+**/plan.out
+**/terraform
+
+# Terraform lock file
+**/.terraform.lock.hcl
+
