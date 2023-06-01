@@ -99,6 +99,30 @@ variable "ssh_ingress_cidrs" {
   type        = list(string)
 }
 
+variable "kms_admin_arns" {
+  description = "A list of ARNs for roles or users that should be able to administer the key but not use it"
+  type        = list(string)
+  default     = null
+}
+
+variable "kms_policy_statements" {
+  description = "A map of policy statements to apply to the kms key use for vault unsealing"
+  type = map(object({
+    sid    = string
+    effect = string
+    principals = list(object({
+      type        = string
+      identifiers = list(string)
+    }))
+    actions = list(string)
+    conditions = optional(list(object({
+      test     = string
+      variable = string
+      values   = list(string)
+    })), [])
+  }))
+  default = null
+}
 variable "enterprise_license_bucket" {
   description = "The name of the bucket where the enterprise license file is stored"
   type        = string
@@ -134,8 +158,8 @@ variable "log_retention" {
 }
 
 variable "load_balancer_ingress_cidrs" {
-  descrption = "The ingress cidrs to allow for the load balancer"
-  type       = list(string)
+  description = "The ingress cidrs to allow for the load balancer"
+  type        = list(string)
 }
 
 variable "health_check_path" {
@@ -161,9 +185,83 @@ variable "sse" {
   default     = "AES256"
 }
 
-variable "s3_policy" {
-  description = "The s3 policy for the backups bucket"
-  type        = string
+variable "force_destroy" {
+  description = "Set to true if you want terraform to destroy the bucket, even if it has data"
+  type        = bool
+  default     = false
+}
+
+variable "s3_policy_statements" {
+  description = "A map of policy statements for the s3 bucket"
+  type = map(object({
+    sid    = string
+    effect = string
+    principals = optional(list(object({
+      type        = string
+      identifiers = list(string)
+    })))
+    not_principals = optional(list(object({
+      type        = string
+      identifiers = list(string)
+    })))
+    actions       = optional(list(string))
+    not_actions   = optional(list(string))
+    resources     = optional(list(string), [])
+    not_resources = optional(list(string))
+    conditions = optional(list(object({
+      test     = string
+      variable = string
+      values   = list(string)
+    })))
+  }))
+  default = {}
+}
+variable "iam_assume_role_policies" {
+  description = "A map of assume role policies for the iam role"
+  type = map(object({
+    sid    = optional(string)
+    effect = optional(string, "Allow")
+    principals = list(object({
+      type        = string
+      identifiers = list(string)
+    }))
+    actions = list(string)
+    conditions = optional(list(object({
+      test     = string
+      variable = string
+      values   = list(string)
+    })), null)
+  }))
+  default = {}
+}
+
+variable "iam_policy_attachments" {
+  description = "A list of aws managed policies to attach to the iam role"
+  type        = list(string)
+  default     = []
+}
+
+variable "iam_policy_statements" {
+  description = "A map of policy statements to apply to the iam role"
+  type = map(object({
+    sid         = optional(string)
+    effect      = optional(string, "Allow")
+    actions     = list(string)
+    not_actions = optional(list(string))
+    resources   = optional(list(string))
+    conditions = optional(list(object({
+      test     = string
+      variable = string
+      values   = list(string)
+    })))
+  }))
+  default = {}
+}
+
+variable "max_session_duration" {
+  description = "The max session duration for the iam role"
+  type        = number
+  default     = 3600
 }
 
 variable "vault_name" {
@@ -171,3 +269,66 @@ variable "vault_name" {
   type        = string
 }
 
+variable "vault_binary" {
+  description = "Whether to use vault enterprise or not"
+  type        = string
+  default     = "vault"
+
+  validation {
+    condition     = contains(["vault", "vault-enterprise"], var.vault_binary)
+    error_message = "The only supported values for vault_binary are `vault` and `vault-enterprise`."
+  }
+}
+
+variable "vault_version" {
+  description = "The version of vault to install"
+  type        = string
+}
+
+variable "auto_join_tag_key" {
+  description = "The AWS tag key to use for node self discovery"
+  type        = string
+  default     = null
+}
+
+variable "auto_join_tag_value" {
+  description = "The AWS tag value to use for node self discovery"
+  type        = string
+  default     = "server"
+}
+
+variable "disable_performance_standby" {
+  description = "Whether to disable performance standby"
+  type        = bool
+  default     = true
+}
+
+variable "ui" {
+  description = "Whether to enable the UI"
+  type        = bool
+  default     = true
+}
+
+variable "disable_mlock" {
+  description = "Whether to disable mlock"
+  type        = bool
+  default     = true
+}
+
+variable "disable_sealwrap" {
+  description = "Whether to disable sealwrap"
+  type        = bool
+  default     = true
+}
+
+variable "audit_log_path" {
+  description = "The file path to the audit log"
+  type        = string
+  default     = "/opt/log/vault-audit.log"
+}
+
+variable "operator_log_path" {
+  description = "The file path to the operator log"
+  type        = string
+  default     = "/var/log/vault-operator.log"
+}

@@ -5,8 +5,6 @@ sections:
     - header
     - inputs
     - outputs
-    - modules
-    - resources
 settings:
   indent: 3
   escape: false

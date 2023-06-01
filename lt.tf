@@ -14,6 +14,17 @@ data "aws_ami" "ubuntu" {
 
   owners = ["099720109477"] # Canonical
 }
+
+data "cloudinit_config" "user_data" {
+  gzip          = true
+  base64_encode = true
+
+  part {
+    content_type = "text/x-shellscript"
+    filename     = "user_data.sh"
+    content      = templatefile("${path.module}/templates/user_data.sh.tpl", local.user_data_values)
+  }
+}
 resource "aws_launch_template" "default" {
   name                   = var.vault_name
   description            = "Launch template for Vault ${var.vault_name}"
@@ -21,6 +32,7 @@ resource "aws_launch_template" "default" {
   instance_type          = var.instance_type
   key_name               = aws_key_pair.default.key_name
   update_default_version = true
+  user_data              = data.cloudinit_config.user_data.rendered
   vpc_security_group_ids = [
     aws_security_group.server.id,
   ]
@@ -56,6 +68,10 @@ resource "aws_launch_template" "default" {
       }
     )
   }
+  iam_instance_profile {
+    arn = aws_iam_instance_profile.default.arn
+  }
+
   metadata_options {
     http_endpoint = "enabled"
     http_tokens   = "required"
@@ -64,7 +80,12 @@ resource "aws_launch_template" "default" {
 
 
 resource "aws_key_pair" "default" {
-  count      = var.ssh_public_key != null ? 1 : 0
   key_name   = var.create_key_name
   public_key = var.ssh_public_key
+  tags = merge(
+    local.tags,
+    {
+      Name = var.create_key_name
+    }
+  )
 }
