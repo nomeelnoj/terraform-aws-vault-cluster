@@ -24,11 +24,35 @@ apt install -y \
 
 echo "Configuring system time"
 timedatectl set-timezone UTC
+
+echo "Downloading the cloudwatch agent"
+
+wget -q https://s3.${region}.amazonaws.com/amazoncloudwatch-agent-${region}/ubuntu/${arch}/latest/amazon-cloudwatch-agent.deb
+dpkg -i -E ./amazon-cloudwatch-agent.deb
+rm amazon-cloudwatch-agent.deb
+
+echo "Adding cloudwatch config file"
+cat << 'EOF' > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+${cloudwatch_agent_config}
+EOF
+
+echo "Reloading the cloudwatch config"
+sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -s -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+
 echo "Ensuring audit log file exists"
 touch ${audit_log_path}
 
 echo "Ensuring operator log file exists"
 touch ${operator_log_path}
+
+echo "Ensuring vault owns and cloudwatch can read the audit log file"
+chown vault:cwagent ${audit_log_path}
+chown vault:cwagent ${operator_log_path}
+chmod 0664 ${audit_log_path}
+echo "restarting cloudwatch agent to load new configs"
+systemctl restart amazon-cloudwatch-agent
+chmod 0664 ${operator_log_path}
+
 # removing any default installation files from /opt/vault/tls/
 rm -rf /opt/vault/tls/*
 

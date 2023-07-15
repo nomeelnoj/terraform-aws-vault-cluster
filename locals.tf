@@ -66,5 +66,15 @@ EOT
     cert_pem                   = local.cert_pem
     arch                       = var.arch
     load_balancer_subnet_cidrs = jsonencode([for k, v in data.aws_subnet.lb_header_passthrough : v.cidr_block])
+    cloudwatch_agent_config = templatefile(
+      "${path.module}/templates/cloudwatch_agent_config.json.tpl",
+      {
+        audit_log_path            = var.audit_log_path
+        operator_log_path         = var.operator_log_path
+        cloudwatch_log_group_name = aws_cloudwatch_log_group.default.name
+        vault_name                = var.vault_name
+        environment               = lookup(var.tags, "Environment", var.vault_name)
+      }
+    )
   }
 }

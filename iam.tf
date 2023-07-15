@@ -88,6 +88,7 @@ locals {
   )
 
   iam_policy_attachments = flatten([
+    data.aws_iam_policy.cloudwatch.arn,
     data.aws_iam_policy.ssm.arn,
     var.iam_policy_attachments
   ])
@@ -132,6 +133,10 @@ resource "aws_iam_role" "default" {
     }
   )
 }
+data "aws_iam_policy" "cloudwatch" {
+  name = "CloudWatchAgentServerPolicy"
+}
+
 data "aws_iam_policy" "ssm" {
   name = "AmazonSSMManagedInstanceCore"
 }
