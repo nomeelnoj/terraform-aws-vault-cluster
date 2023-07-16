@@ -121,9 +121,6 @@ telemetry {
 }
 log_format           = "json"
 log_file             = "${operator_log_path}"
-log_rotate_duration  = "24h"
-log_rotate_bytes     = 1073741824
-log_rotate_max_files = 30
 ${vault_enterprise_license_config}
 EOF
 
@@ -155,6 +152,21 @@ EOF
 echo "setting up logrotate for vault audit log"
 cat <<EOF >> /etc/logrotate.d/vault-audit
 ${audit_log_path} {
+  daily
+  rotate 14
+  compress
+  copytruncate
+  notifempty
+  missingok
+}
+EOF
+
+# We use logrotate because the built in vault rotator for operator logs does
+# not play nice with cw agent bc of file permissions, and we dont want to give
+# cwagent access to the vault group
+echo "setting up logrotate for vault operator log"
+cat <<EOF >> /etc/logrotate.d/vault-operator
+${operator_log_path} {
   daily
   rotate 14
   compress
