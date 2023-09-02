@@ -13,7 +13,7 @@ resource "aws_autoscaling_group" "default" {
 
   health_check_grace_period = 180
 
-  health_check_type = "EC2"
+  health_check_type = "ELB"
 
   instance_refresh {
     strategy = "Rolling"

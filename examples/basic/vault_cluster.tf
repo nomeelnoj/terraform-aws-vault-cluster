@@ -8,7 +8,7 @@ module "vault_cluster" {
     aws.dns                   = aws.dns
     aws.s3_enterprise_license = aws.central-account
   }
-  source = "git::git@github.com:nomeelnoj/terraform-aws-vault-cluster.git?ref=v0.0.1"
+  source = "git::git@github.com:nomeelnoj/terraform-aws-vault-cluster.git?ref=v0.0.3"
 
   subnet_ids = data.aws_subnets.default.ids
   vpc_id     = data.aws_vpc.default.id
