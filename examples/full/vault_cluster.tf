@@ -22,7 +22,7 @@ module "vault_cluster" {
   }
 
   vault_name                = "${local.name}-${local.env}"
-  vault_version             = "1.13.2+ent-1" # Setting this to +ent will deploy the enterprise binary. S3 bucket for license required (below)
+  vault_version             = "1.14.2+ent-1" # Setting this to +ent will deploy the enterprise binary. S3 bucket for license required (below)
   enterprise_license_bucket = "vault-enterprise-license-bucket"
   enterprise_license_s3_key = "vault.hclic"
 

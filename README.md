@@ -21,7 +21,7 @@ To configure if the cluster will be enterprise or OSS, you need only set two val
 ```hcl
 module "vault_cluster" {
   # ... removed for brevity
-    vault_version = "1.13.2+ent-1" # The binary version determines enterprise or not
+    vault_version = "1.14.2+ent-1" # The binary version determines enterprise or not
 
     enterprise_license_bucket = "my-vault-enterprise-license-bucket"
     enterprise_license_s3_key = "vault.hclic"

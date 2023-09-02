@@ -14,7 +14,7 @@ module "vault_cluster" {
   vpc_id     = data.aws_vpc.default.id
 
   vault_name      = "${local.name}-${local.env}"
-  vault_version   = "1.13.2-1"
+  vault_version   = "1.14.2-1"
   ttl             = "24h"
   ssh_public_key  = "ssh ed25519..."
   create_key_name = "${local.name}-${local.env}-${substr(sha256("${local.name}-${local.env}"), 0, 8)}"
