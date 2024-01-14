@@ -13,14 +13,14 @@ locals {
       resources = ["*"]
     }
   }
-  kms_admin_policy = try(var.kms_admin_arns, null) != null ? {
+  kms_admin_policy = try(var.kms["admin_arns"], null) != null ? {
     admin = {
       sid    = "EnableKeyAdministrationWithoutUse"
       effect = "Allow"
       principals = [
         {
           type        = "AWS"
-          identifiers = var.kms_admin_arns
+          identifiers = var.kms["admin_arns"]
         }
       ]
       actions = [
@@ -83,7 +83,7 @@ locals {
     local.unseal_policy,
     local.default_kms_policy,
     local.kms_admin_policy,
-    var.kms_policy_statements,
+    try(var.kms["policy_statements"], {})
   )
 
   s3_kms_policy = {
@@ -133,7 +133,7 @@ locals {
           variable = "kms:EncryptionContext:aws:logs:arn"
           values = [
             # Cycle issue, need to hard code
-            "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/hashicorp/vault/${var.vault_name}"
+            "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/hashicorp/vault/${var.vault_config["vault_name"]}"
           ]
         }
       ]
@@ -143,11 +143,11 @@ locals {
   kms_keys = merge(
     {
       auto_unseal = {
-        name              = "/hashicorp/vault/${var.vault_name}-auto-unseal"
+        name              = "/hashicorp/vault/${var.vault_config["vault_name"]}-auto-unseal"
         policy_statements = local.kms_policy_statements
       }
       cloudwatch = {
-        name = "/cloudwatch/hashicorp/vault/${var.vault_name}"
+        name = "/cloudwatch/hashicorp/vault/${var.vault_config["vault_name"]}"
         policy_statements = merge(
           local.default_kms_policy,
           local.kms_cloudwatch_policy,
@@ -155,13 +155,14 @@ locals {
         )
       }
     },
-    var.sse == "AES256" ? {} : {
+    var.s3["sse"] == "AES256" ? {} : {
       s3 = {
-        name = "/aws/s3/${var.bucket}"
+        name = "/aws/s3/${var.s3["bucket"]}"
         policy_statements = merge(
           local.default_kms_policy,
           local.kms_admin_policy,
           local.s3_kms_policy,
+          lookup(var.s3, "kms_policy_statements", {})
         )
       }
     }

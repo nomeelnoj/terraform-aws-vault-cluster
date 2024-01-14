@@ -1,10 +1,10 @@
 locals {
-  auto_join_tag_key = var.auto_join_tag_key != null ? var.auto_join_tag_key : var.vault_name
+  auto_join_tag_key = var.vault_config["auto_join_tag_key"] != null ? var.vault_config["auto_join_tag_key"] : var.vault_config["vault_name"]
   tags = merge(
     var.tags,
     {
-      Name                      = var.vault_name
-      (local.auto_join_tag_key) = var.auto_join_tag_value
+      Name                      = var.vault_config["vault_name"]
+      (local.auto_join_tag_key) = var.vault_config["auto_join_tag_value"]
     },
   )
 
@@ -14,28 +14,37 @@ locals {
   )
 
   user_data_values = {
-    disable_performance_standby = var.disable_performance_standby
-    ui                          = var.ui
-    disable_mlock               = var.disable_mlock
-    disable_sealwrap            = var.disable_sealwrap
-    audit_log_path              = var.audit_log_path
-    operator_log_path           = var.operator_log_path
-    region                      = var.aws_region
-    tag_key                     = local.auto_join_tag_key
-    tag_value                   = var.auto_join_tag_value
-    vault_binary                = var.vault_binary
-    vault_version               = var.vault_version
+    disable_performance_standby   = lookup(var.vault_config, "disable_performance_standby", true)
+    ui                            = lookup(var.vault_config, "ui", true)
+    disable_mlock                 = lookup(var.vault_config, "disable_mlock", true)
+    disable_sealwrap              = lookup(var.vault_config, "disable_sealwrap", true)
+    additional_server_configs     = lookup(var.vault_config, "additional_server_configs", "")
+    additional_server_tcp_configs = lookup(var.vault_config, "additional_server_tcp_configs", "")
+    audit_log_path                = var.vault_config["audit_log_path"]
+    operator_log_path             = var.vault_config["operator_log_path"]
+    region                        = var.aws_region
+    tag_key                       = local.auto_join_tag_key
+    tag_value                     = var.vault_config["auto_join_tag_value"]
 
-    vault_enterprise_license_config = var.vault_binary == "vault-enterprise" ? "license_path = \"/opt/vault/vault.hclic\"" : ""
+    vault_binary  = strcontains(var.vault_config["vault_version"], "ent") ? "vault-enterprise" : "vault"
+    vault_version = var.vault_config["vault_version"]
 
-    enterprise_download = var.vault_binary != "vault-enterprise" ? "" : <<EOT
-aws s3 cp s3://${data.aws_s3_bucket.enterprise_license[0].bucket}/${var.enterprise_license_s3_key} /opt/vault/vault.hclic
+    vault_enterprise_license_config = strcontains(
+      var.vault_config["vault_version"], "ent"
+    ) ? "license_path = \"/opt/vault/vault.hclic\"" : ""
+
+    enterprise_download = !strcontains(
+      var.vault_config["vault_version"], "ent"
+    ) ? "" : <<EOT
+aws s3 cp s3://${data.aws_s3_bucket.enterprise_license[0].bucket}/${var.enterprise_license["s3_key"]} /opt/vault/vault.hclic
 # vault.hclic should be readable by the vault group only
 chown root:vault /opt/vault/vault.hclic
 chmod 0640 /opt/vault/vault.hclic
 EOT
 
-    snapshot_config = var.vault_binary == "vault-enterprise" ? "" : <<EOT
+    snapshot_config = strcontains(
+      var.vault_config["vault_version"], "ent"
+    ) ? "" : <<EOT
 cat <<-EOF > /etc/cron.daily/vault_snapshot
 #!/bin/bash
 
@@ -59,22 +68,22 @@ EOF
 chmod +x /etc/cron.daily/vault_snapshot
 EOT
 
-    kms_key_arn                = aws_kms_key.default["auto_unseal"].arn
-    leader_hostname            = var.hostname
-    cert_key                   = local.cert_key
-    cert_chain                 = local.cert_chain
-    cert_pem                   = local.cert_pem
-    arch                       = var.arch
-    load_balancer_subnet_cidrs = jsonencode([for k, v in data.aws_subnet.lb_header_passthrough : v.cidr_block])
+    kms_key_arn     = aws_kms_key.default["auto_unseal"].arn
+    leader_hostname = var.dns["hostname"]
+    cert_key        = local.cert_key
+    cert_chain      = local.cert_chain
+    cert_pem        = local.cert_pem
+    arch            = var.server["arch"]
     cloudwatch_agent_config = templatefile(
       "${path.module}/templates/cloudwatch_agent_config.json.tpl",
       {
-        audit_log_path            = var.audit_log_path
-        operator_log_path         = var.operator_log_path
+        audit_log_path            = var.vault_config["audit_log_path"]
+        operator_log_path         = var.vault_config["operator_log_path"]
         cloudwatch_log_group_name = aws_cloudwatch_log_group.default.name
-        vault_name                = var.vault_name
-        environment               = lookup(var.tags, "Environment", var.vault_name)
+        vault_name                = var.vault_config["vault_name"]
+        environment               = lookup(var.tags, "Environment", var.vault_config["vault_name"])
       }
     )
+    load_balancer_subnet_cidrs = jsonencode([for k, v in data.aws_subnet.lb_header_passthrough : v.cidr_block])
   }
 }

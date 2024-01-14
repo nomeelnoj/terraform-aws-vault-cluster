@@ -4,135 +4,97 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
-variable "use_route53" {
-  description = "Whether to use route53. If not selected, hostname will not be managed."
-  type        = bool
-  default     = true
+variable "dns" {
+  description = "All configuration values related to DNS"
+  type = object({
+    use_route53  = optional(bool, true)
+    hosted_zone  = string
+    hostname     = string
+    private_zone = optional(bool, true)
+  })
 }
 
-variable "hosted_zone" {
-  description = "The name of the hosted zone to use"
-  type        = string
-  default     = null
+variable "cert" {
+  description = "All configuration values for the SSL certs used by Vault and the load balancer"
+  type = object({
+    generate_local                = optional(bool, false)
+    ttl                           = optional(string, "8760h")
+    alt_names                     = optional(list(string))
+    vault_pki_secret_backend_role = optional(string, "pki")
+  })
+  default = {}
 }
 
-variable "hostname" {
-  description = "The hostname for the vault cluster"
-  type        = string
-}
+variable "server" {
+  description = "All configuration values for the vault servers"
+  type = object({
+    ami_id                      = optional(string)
+    arch                        = optional(string, "arm64")
+    root_device_name            = optional(string)
+    create_key_name             = optional(string)
+    ssh_public_key              = optional(string)
+    key_name                    = optional(string)
+    instance_type               = optional(string, "t4g.medium")
+    node_count                  = optional(number, 3)
+    ssh_ingress_cidrs           = optional(list(string), [])
+    ssh_ingress_security_groups = optional(list(string), [])
+  })
 
-variable "private_zone" {
-  description = "Whether the route53 zone is private or not"
-  type        = bool
-  default     = true
-}
+  default = {}
 
-variable "generate_local_cert" {
-  description = "Whether to generate a local cert or use vault. Good for first time setups before you have a vault to bootstrap"
-  type        = bool
-  default     = false
-}
-
-variable "ttl" {
-  description = "The TTL of the cert"
-  type        = string
-  default     = "8760h"
-}
-
-variable "alt_names" {
-  description = "Alt names for the cert"
-  type        = list(string)
-  default     = null
-}
-
-variable "vault_pki_secret_backend_role" {
-  description = "The role to use in vault when generating the cert"
-  type        = string
-  default     = "pki"
-}
-
-variable "ami_id" {
-  description = "The ami id to use if you want to override the default most recent ubuntu image"
-  type        = string
-  default     = null
-}
-
-variable "arch" {
-  description = "The architecture to use--arm64 or amd64"
-  type        = string
-  default     = "arm64"
   validation {
-    condition     = contains(["arm64", "amd64"], var.arch)
+    condition     = contains(["arm64", "amd64"], var.server["arch"])
     error_message = "The only supported architectures at this time are 'arm64' and 'amd64'.  Make sure your instance type matches the architecture you have set."
   }
-}
-
-variable "instance_type" {
-  description = "The instance type to use for cluster instances"
-  type        = string
-  default     = "t4g.medium"
-}
-
-variable "node_count" {
-  description = "The number of nodes in the cluster.  Must be an odd number greater than or equal to 3"
-  type        = number
-  default     = 3
 
   validation {
-    condition     = var.node_count % 2 == 1 && var.node_count >= 3
+    condition     = alltrue(flatten([for k, v in var.server : k == "ssh_ingress_cidrs" ? [for cidr in v : can(cidrhost(cidr, 0))] : [true]]))
+    error_message = "All values in var.server[\"ssh_ingress_cidrs\"] must be valid CIDR objects."
+  }
+
+  validation {
+    condition     = alltrue(flatten([for k, v in var.server : k == "ssh_ingress_security_groups" ? [for sg in v : can(regex("sg-.*", sg))] : [true]]))
+    error_message = "All values in var.server[\"ssh_ingress_security_groups\"] must be valid security group IDs (e.g. sg-12345)."
+  }
+
+  validation {
+    condition     = var.server["node_count"] % 2 == 1 && var.server["node_count"] >= 3
     error_message = "Node count must be an odd number greater than or equal to 3."
   }
 }
 
-variable "create_key_name" {
-  description = "The name of the SSH key to create"
-  type        = string
-}
-
-variable "ssh_public_key" {
-  description = "The public key to use when creating an SSH key"
-  type        = string
-}
-
-variable "ssh_ingress_cidrs" {
-  description = "The ingress cidrs for SSH to nodes"
-  type        = list(string)
-}
-
-variable "kms_admin_arns" {
-  description = "A list of ARNs for roles or users that should be able to administer the key but not use it"
-  type        = list(string)
-  default     = null
-}
-
-variable "kms_policy_statements" {
-  description = "A map of policy statements to apply to the kms key use for vault unsealing"
-  type = map(object({
-    sid    = string
-    effect = string
-    principals = list(object({
-      type        = string
-      identifiers = list(string)
-    }))
-    actions = list(string)
-    conditions = optional(list(object({
-      test     = string
-      variable = string
-      values   = list(string)
-    })), [])
-  }))
+variable "kms" {
+  description = "All arguments related to KMS keys.  Module creates a key each for auto-unseal, cloudwatch, and s3 backups"
+  type = object({
+    admin_arns = list(string)
+    policy_statements = optional(map(object({
+      sid    = string
+      effect = string
+      principals = list(object({
+        type        = string
+        identifiers = list(string)
+      }))
+      actions = list(string)
+      conditions = optional(list(object({
+        test     = string
+        variable = string
+        values   = list(string)
+      })), [])
+    })), {})
+  })
   default = null
 }
-variable "enterprise_license_bucket" {
-  description = "The name of the bucket where the enterprise license file is stored"
-  type        = string
-  default     = null
-}
 
-variable "enterprise_license_s3_key" {
-  description = "The name of the s3 key to use for the enterprise license"
-  type        = string
-  default     = "vault.hclic"
+
+variable "enterprise_license" {
+  description = "Config values for the Enterprise license. Consists of an S3 bucket and s3 key where the license file exists."
+  type = object({
+    bucket_name = optional(string)
+    s3_key      = optional(string)
+  })
+  default = {
+    s3_key = "vault.hclic"
+  }
 }
 
 variable "subnet_ids" {
@@ -157,178 +119,133 @@ variable "log_retention" {
   default     = 731 # 2 years
 }
 
-variable "load_balancer_ingress_cidrs" {
-  description = "The ingress cidrs to allow for the load balancer"
-  type        = list(string)
-}
-
-variable "health_check_path" {
-  description = "The path to use for health checks.  For uninitialized nodes, use /v1/sys/health?activecode=200&standbycode=200&sealedcode=200&uninitcode=200 for the health_check_path."
-  type        = string
-  default     = "/v1/sys/health"
-}
-
-variable "health_check_matcher" {
-  description = "The health check codes to map against. Add 472 for DR replicas"
-  type        = string
-  default     = "200"
-}
-
-variable "bucket" {
-  description = "The name of the s3 bucket to create for backup"
-  type        = string
-}
-
-variable "sse" {
-  description = "The type of encryption to use on the s3 bucket"
-  type        = string
-  default     = "AES256"
-}
-
-variable "force_destroy" {
-  description = "Set to true if you want terraform to destroy the bucket, even if it has data"
-  type        = bool
-  default     = false
-}
-
-variable "s3_policy_statements" {
-  description = "A map of policy statements for the s3 bucket"
-  type = map(object({
-    sid    = string
-    effect = string
-    principals = optional(list(object({
-      type        = string
-      identifiers = list(string)
-    })))
-    not_principals = optional(list(object({
-      type        = string
-      identifiers = list(string)
-    })))
-    actions       = optional(list(string))
-    not_actions   = optional(list(string))
-    resources     = optional(list(string), [])
-    not_resources = optional(list(string))
-    conditions = optional(list(object({
-      test     = string
-      variable = string
-      values   = list(string)
-    })))
-  }))
+variable "load_balancer" {
+  description = "All configuration values for the load balancer. For uninitialized nodes, use /v1/sys/health?activecode=200&standbycode=200&sealedcode=200&uninitcode=200 for the health_check_path."
+  type = object({
+    health_check_matcher          = optional(string, "200,429")
+    ingress_cidrs                 = optional(list(string))
+    ingress_security_groups       = optional(list(string))
+    additional_lb_security_groups = optional(list(string), [])
+    health_check_path             = optional(string, "/v1/sys/health")
+  })
   default = {}
-}
-variable "iam_assume_role_policies" {
-  description = "A map of assume role policies for the iam role"
-  type = map(object({
-    sid    = optional(string)
-    effect = optional(string, "Allow")
-    principals = list(object({
-      type        = string
-      identifiers = list(string)
-    }))
-    actions = list(string)
-    conditions = optional(list(object({
-      test     = string
-      variable = string
-      values   = list(string)
-    })), null)
-  }))
-  default = {}
-}
-
-variable "iam_policy_attachments" {
-  description = "A list of aws managed policies to attach to the iam role"
-  type        = list(string)
-  default     = []
-}
-
-variable "iam_policy_statements" {
-  description = "A map of policy statements to apply to the iam role"
-  type = map(object({
-    sid         = optional(string)
-    effect      = optional(string, "Allow")
-    actions     = list(string)
-    not_actions = optional(list(string))
-    resources   = optional(list(string))
-    conditions = optional(list(object({
-      test     = string
-      variable = string
-      values   = list(string)
-    })))
-  }))
-  default = {}
-}
-
-variable "max_session_duration" {
-  description = "The max session duration for the iam role"
-  type        = number
-  default     = 3600
-}
-
-variable "vault_name" {
-  description = "The name of the vault cluster you wish to create"
-  type        = string
-}
-
-variable "vault_binary" {
-  description = "Whether to use vault enterprise or not"
-  type        = string
-  default     = "vault"
 
   validation {
-    condition     = contains(["vault", "vault-enterprise"], var.vault_binary)
-    error_message = "The only supported values for vault_binary are `vault` and `vault-enterprise`."
+    condition     = alltrue([for cidr in var.load_balancer["ingress_cidrs"] : can(cidrhost(cidr, 0))])
+    error_message = "All values in var.load_balancer[\"ingress_cidrs\"] must be valid CIDR objects."
+  }
+
+  validation {
+    condition     = alltrue([for sg in var.load_balancer["ingress_security_groups"] : can(regex("sg-.*", sg))])
+    error_message = "All values in var.load_balancer[\"ingress_security_groups\"] must be valid security group IDs (e.g. sg-12345)."
+  }
+
+  validation {
+    condition     = alltrue([for sg in var.load_balancer["additional_lb_security_groups"] : can(regex("sg-.*", sg))])
+    error_message = "All values in var.load_balancer[\"additional_lb_security_groups\"] must be valid security group IDs (e.g. sg-12345)."
   }
 }
 
-variable "vault_version" {
-  description = "The version of vault to install"
-  type        = string
+variable "s3" {
+  description = "A map of all the various configuration values for the s3 bucket created to store backups."
+  type = object({
+    bucket        = string
+    force_destroy = optional(bool, false)
+    sse           = optional(string, "aws:kms")
+    policy_statements = optional(map(object({
+      sid    = string
+      effect = string
+      principals = optional(list(object({
+        type        = string
+        identifiers = list(string)
+      })))
+      not_principals = optional(list(object({
+        type        = string
+        identifiers = list(string)
+      })))
+      actions       = optional(list(string))
+      not_actions   = optional(list(string))
+      resources     = optional(list(string), [])
+      not_resources = optional(list(string))
+      conditions = optional(list(object({
+        test     = string
+        variable = string
+        values   = list(string)
+      })))
+    })), {})
+    kms_policy_statements = optional(map(object({
+      sid    = string
+      effect = string
+      principals = optional(list(object({
+        type        = string
+        identifiers = list(string)
+      })))
+      not_principals = optional(list(object({
+        type        = string
+        identifiers = list(string)
+      })))
+      actions       = optional(list(string))
+      not_actions   = optional(list(string))
+      resources     = optional(list(string), [])
+      not_resources = optional(list(string))
+      conditions = optional(list(object({
+        test     = string
+        variable = string
+        values   = list(string)
+      })))
+    })), {})
+  })
 }
 
-variable "auto_join_tag_key" {
-  description = "The AWS tag key to use for node self discovery"
-  type        = string
-  default     = null
+variable "iam" {
+  description = "A variable to contain all IAM information passed into the module"
+  type = object({
+    assume_role_policies = optional(map(object({
+      sid    = optional(string)
+      effect = optional(string, "Allow")
+      principals = list(object({
+        type        = string
+        identifiers = list(string)
+      }))
+      actions = list(string)
+      conditions = optional(list(object({
+        test     = string
+        variable = string
+        values   = list(string)
+      })), null)
+    })), {})
+    max_session_duration = optional(number, 3600)
+    policy_statements = optional(map(object({
+      sid         = optional(string)
+      effect      = optional(string, "Allow")
+      actions     = list(string)
+      not_actions = optional(list(string))
+      resources   = optional(list(string))
+      conditions = optional(list(object({
+        test     = string
+        variable = string
+        values   = list(string)
+      })))
+    })), {})
+  })
+  default = {}
 }
 
-variable "auto_join_tag_value" {
-  description = "The AWS tag value to use for node self discovery"
-  type        = string
-  default     = "server"
+variable "vault_config" {
+  description = "The vault config values to add to the userdata for populating /etc/vault/vault.hcl."
+  type = object({
+    vault_name                    = string
+    vault_version                 = string
+    auto_join_tag_key             = optional(string)
+    auto_join_tag_value           = optional(string, "server")
+    disable_performance_standby   = optional(bool, true)
+    ui                            = optional(bool, true)
+    disable_mlock                 = optional(bool, true)
+    disable_sealwrap              = optional(bool, true)
+    additional_server_configs     = optional(string, "")
+    additional_server_tcp_configs = optional(string, "")
+    audit_log_path                = optional(string, "/opt/vault/vault-audit.log")
+    operator_log_path             = optional(string, "/var/log/vault-operator.log")
+  })
 }
 
-variable "disable_performance_standby" {
-  description = "Whether to disable performance standby"
-  type        = bool
-  default     = true
-}
-
-variable "ui" {
-  description = "Whether to enable the UI"
-  type        = bool
-  default     = true
-}
-
-variable "disable_mlock" {
-  description = "Whether to disable mlock"
-  type        = bool
-  default     = true
-}
-
-variable "disable_sealwrap" {
-  description = "Whether to disable sealwrap"
-  type        = bool
-  default     = true
-}
-
-variable "audit_log_path" {
-  description = "The file path to the audit log"
-  type        = string
-  default     = "/opt/log/vault-audit.log"
-}
-
-variable "operator_log_path" {
-  description = "The file path to the operator log"
-  type        = string
-  default     = "/var/log/vault-operator.log"
-}

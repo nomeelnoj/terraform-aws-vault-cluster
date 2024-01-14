@@ -4,23 +4,26 @@ data "aws_subnet" "default" {
 }
 
 resource "aws_lb" "default" {
-  name                       = var.vault_name
-  internal                   = true
-  load_balancer_type         = "application"
-  subnets                    = var.subnet_ids
-  security_groups            = [aws_security_group.lb.id]
+  name               = var.vault_config["vault_name"]
+  internal           = true
+  load_balancer_type = "application"
+  subnets            = var.subnet_ids
+  security_groups = flatten([
+    aws_security_group.lb.id,
+    var.load_balancer["additional_lb_security_groups"]
+  ])
   drop_invalid_header_fields = true
 
   tags = merge(
     local.tags,
     {
-      Name = var.vault_name
+      Name = var.vault_config["vault_name"]
     },
   )
 }
 
 resource "aws_lb_target_group" "default" {
-  name                 = var.vault_name
+  name                 = var.vault_config["vault_name"]
   target_type          = "instance"
   port                 = 8200
   protocol             = "HTTPS"
@@ -32,9 +35,9 @@ resource "aws_lb_target_group" "default" {
     unhealthy_threshold = 5
     protocol            = "HTTPS"
     port                = "traffic-port"
-    path                = var.health_check_path
+    path                = var.load_balancer["health_check_path"]
     interval            = 30
-    matcher             = var.health_check_matcher
+    matcher             = var.load_balancer["health_check_matcher"]
   }
 
   tags = local.tags

@@ -16,6 +16,7 @@ apt update
 # the vault user, etc.
 # Be careful when running updates to ensure that the version you are installing
 # is still there, as rolling nodes with a missing version will cause Vault data loss.
+
 apt install -y \
   ${vault_binary}=${vault_version} \
   awscli \
@@ -109,6 +110,7 @@ listener "tcp" {
   tls_key_file                     = "/opt/vault/tls/vault-key.pem"
   tls_client_ca_file               = "/opt/vault/tls/vault-ca.pem"
   x_forwarded_for_authorized_addrs = ${load_balancer_subnet_cidrs}
+  ${indent(2, additional_server_tcp_configs)}
 }
 seal "awskms" {
   region     = "${region}"
@@ -121,6 +123,7 @@ telemetry {
 }
 log_format           = "json"
 log_file             = "${operator_log_path}"
+${additional_server_configs}
 ${vault_enterprise_license_config}
 EOF
 

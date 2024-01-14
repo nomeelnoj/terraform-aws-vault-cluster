@@ -1,10 +1,10 @@
 data "aws_ami" "ubuntu" {
-  count       = var.ami_id != null ? 0 : 1
+  count       = var.server["ami_id"] != null ? 0 : 1
   most_recent = true
 
   filter {
     name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-${var.arch}-server-*"]
+    values = ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-${var.server["arch"]}-server-*"]
   }
 
   filter {
@@ -25,14 +25,16 @@ data "cloudinit_config" "user_data" {
     content      = templatefile("${path.module}/templates/user_data.sh.tpl", local.user_data_values)
   }
 }
+
 resource "aws_launch_template" "default" {
-  name                   = var.vault_name
-  description            = "Launch template for Vault ${var.vault_name}"
-  image_id               = var.ami_id != null ? var.ami_id : data.aws_ami.ubuntu[0].id
-  instance_type          = var.instance_type
-  key_name               = aws_key_pair.default.key_name
+  name                   = var.vault_config["vault_name"]
+  description            = "Launch template for Vault ${var.vault_config["vault_name"]}"
+  image_id               = var.server["ami_id"] != null ? var.server["ami_id"] : data.aws_ami.ubuntu[0].id
+  instance_type          = var.server["instance_type"]
+  key_name               = var.server["key_name"] != null ? var.server["key_name"] : try(aws_key_pair.default[0].key_name, null)
   update_default_version = true
   user_data              = data.cloudinit_config.user_data.rendered
+
   vpc_security_group_ids = [
     aws_security_group.server.id,
   ]
@@ -54,7 +56,7 @@ resource "aws_launch_template" "default" {
     tags = merge(
       local.tags,
       {
-        Name = "${var.vault_name}-server:/dev/sda1"
+        Name = "${var.vault_config["vault_name"]}-server:/dev/sda1"
       }
     )
   }
@@ -64,10 +66,11 @@ resource "aws_launch_template" "default" {
     tags = merge(
       local.tags,
       {
-        Name = "${var.vault_name}-server"
+        Name = "${var.vault_config["vault_name"]}-server"
       }
     )
   }
+
   iam_instance_profile {
     arn = aws_iam_instance_profile.default.arn
   }
@@ -76,16 +79,22 @@ resource "aws_launch_template" "default" {
     http_endpoint = "enabled"
     http_tokens   = "required"
   }
+
+  lifecycle {
+    precondition {
+      condition     = var.server["create_key_name"] == "" || var.server["key_name"] == null
+      error_message = "`var.server[\"create_key_name\"]` and `var.server[\"key_name\"]` are mutually exclusive. Use `var.server[\"create_key_name\"]` to name the key in `var.server[\"ssh_public_key\"]`, and use `var.server[\"key_name\"]` to use a key that already exists in AWS."
+    }
+
+    precondition {
+      condition     = var.server["ami_id"] != null ? var.server["root_device_name"] != null : true
+      error_message = "If you specify `var.server[\"ami_id\"]`, you must also specify `var.server[\"root_device_name\"]`."
+    }
+  }
 }
 
-
 resource "aws_key_pair" "default" {
-  key_name   = var.create_key_name
-  public_key = var.ssh_public_key
-  tags = merge(
-    local.tags,
-    {
-      Name = var.create_key_name
-    }
-  )
+  count      = var.server["ssh_public_key"] != null ? 1 : 0
+  key_name   = var.server["create_key_name"]
+  public_key = var.server["ssh_public_key"]
 }

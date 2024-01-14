@@ -19,7 +19,7 @@ locals {
           {
             test     = "StringEquals"
             variable = "s3:x-amz-server-side-encryption"
-            values   = [var.sse == "aws:kms" ? "AES256" : "aws:kms"]
+            values   = [var.s3["sse"] == "aws:kms" ? "AES256" : "aws:kms"]
           }
         ]
       }
@@ -43,18 +43,18 @@ locals {
         resources = [] # Defaults to bucket and bucket contents
       }
     },
-    var.s3_policy_statements
+    var.s3["policy_statements"]
   )
 }
 
 resource "aws_s3_bucket" "default" {
-  bucket        = var.bucket
-  force_destroy = var.force_destroy
+  bucket        = var.s3["bucket"]
+  force_destroy = var.s3["force_destroy"]
 
   tags = merge(
     var.tags,
     {
-      Name = var.bucket
+      Name = var.s3["bucket"]
     },
   )
 
@@ -101,8 +101,8 @@ data "aws_iam_policy_document" "default" {
         # Preference is to use resource outputs here, but any time any attribute of the bucket changes,
         # terraform is not certain the ARN will be the same, so the plan shows a full re-calculation of the policy
         # By hard-coding the ARNs, we avoid this confusing output
-        "arn:aws:s3:::${var.bucket}",
-        "arn:aws:s3:::${var.bucket}/*"
+        "arn:aws:s3:::${var.s3["bucket"]}",
+        "arn:aws:s3:::${var.s3["bucket"]}/*"
       ]
       not_resources = lookup(statement.value, "not_resources", null)
       dynamic "condition" {
@@ -136,13 +136,14 @@ resource "aws_s3_bucket_public_access_block" "default" {
   ]
 }
 
+
 resource "aws_s3_bucket_server_side_encryption_configuration" "default" {
   bucket = aws_s3_bucket.default.bucket
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm     = var.sse
-      kms_master_key_id = var.sse == "AES256" ? null : aws_kms_key.default["s3"].arn
+      sse_algorithm     = var.s3["sse"]
+      kms_master_key_id = var.s3["sse"] == "AES256" ? null : aws_kms_key.default["s3"].arn
     }
   }
 }
@@ -153,7 +154,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "default" {
 resource "aws_s3_object" "user_data" {
   bucket     = aws_s3_bucket.default.bucket
   key        = "cloudinit/user_data.sh"
-  kms_key_id = var.sse == "aws:kms" ? aws_kms_key.default["s3"].arn : null
+  kms_key_id = var.s3["sse"] == "aws:kms" ? aws_kms_key.default["s3"].arn : null
   content = templatefile("${path.module}/templates/user_data.sh.tpl",
     {
       for k, v in local.user_data_values : k => k == "cert_key" ? "redacted" : v

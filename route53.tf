@@ -1,15 +1,15 @@
 data "aws_route53_zone" "default" {
-  count        = var.use_route53 ? 1 : 0
+  count        = var.dns["use_route53"] ? 1 : 0
   provider     = aws.dns
-  name         = var.hosted_zone
-  private_zone = var.private_zone
+  name         = var.dns["hosted_zone"]
+  private_zone = var.dns["private_zone"]
 }
 
 resource "aws_route53_record" "default" {
-  count    = var.use_route53 ? 1 : 0
+  count    = var.dns["use_route53"] ? 1 : 0
   provider = aws.dns
   zone_id  = data.aws_route53_zone.default[0].id
-  name     = var.hostname
+  name     = var.dns["hostname"]
   type     = "A"
 
   alias {

@@ -5,13 +5,16 @@ locals {
 }
 
 resource "vault_pki_secret_backend_cert" "default" {
-  count       = var.generate_local_cert ? 0 : 1
+  count       = var.cert["generate_local"] ? 0 : 1
   backend     = "pki"
-  name        = var.vault_pki_secret_backend_role
-  ttl         = var.ttl
-  common_name = var.hostname
-  alt_names   = var.alt_names
+  name        = var.cert["vault_pki_secret_backend_role"]
+  ttl         = var.cert["ttl"]
+  common_name = var.dns["hostname"]
+  alt_names   = var.cert["alt_names"]
   ip_sans     = ["127.0.0.1"]
+
+  auto_renew            = true
+  min_seconds_remaining = 60 * 60 * 24 * 30 # 30 days
 
   lifecycle {
     create_before_destroy = true
@@ -29,25 +32,31 @@ resource "aws_acm_certificate" "default" {
   tags = merge(
     local.tags,
     {
-      Name = var.hostname
+      Name = var.dns["hostname"]
     }
   )
 }
 
+### If no vault cluster or cert is available, generate a self-signed cert ###
+# After bootstrapping the cluster with the self signed cert
+# Vault can be configured to generate certificates off an intermediate
+# and then the updated to use the vault issued certs
+# check docs/rotating_vault_certs.md for more informationzo
+
 # Generate a private key so you can create a CA cert with it.
 resource "tls_private_key" "ca" {
-  count     = var.generate_local_cert ? 1 : 0
+  count     = var.cert["generate_local"] ? 1 : 0
   algorithm = "RSA"
   rsa_bits  = 2048
 }
 
 # Create a CA cert with the private key you just generated.
 resource "tls_self_signed_cert" "ca" {
-  count           = var.generate_local_cert ? 1 : 0
+  count           = var.cert["generate_local"] ? 1 : 0
   private_key_pem = tls_private_key.ca[0].private_key_pem
 
   subject {
-    common_name = var.hostname
+    common_name = var.dns["hostname"]
   }
 
   validity_period_hours = 730 # 30 days
@@ -68,7 +77,7 @@ resource "tls_self_signed_cert" "ca" {
 # Generate another private key. This one will be used
 # To create the certs on your Vault nodes
 resource "tls_private_key" "server" {
-  count     = var.generate_local_cert ? 1 : 0
+  count     = var.cert["generate_local"] ? 1 : 0
   algorithm = "RSA"
   rsa_bits  = 2048
 
@@ -79,15 +88,15 @@ resource "tls_private_key" "server" {
 }
 
 resource "tls_cert_request" "server" {
-  count           = var.generate_local_cert ? 1 : 0
+  count           = var.cert["generate_local"] ? 1 : 0
   private_key_pem = tls_private_key.server[0].private_key_pem
 
   subject {
-    common_name = var.hostname
+    common_name = var.dns["hostname"]
   }
 
   dns_names = [
-    var.hostname,
+    var.dns["hostname"],
     "localhost",
   ]
 
@@ -97,7 +106,7 @@ resource "tls_cert_request" "server" {
 }
 
 resource "tls_locally_signed_cert" "server" {
-  count              = var.generate_local_cert ? 1 : 0
+  count              = var.cert["generate_local"] ? 1 : 0
   cert_request_pem   = tls_cert_request.server[0].cert_request_pem
   ca_private_key_pem = tls_private_key.ca[0].private_key_pem
   ca_cert_pem        = tls_self_signed_cert.ca[0].cert_pem

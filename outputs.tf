@@ -34,3 +34,12 @@ output "iam" {
   value       = aws_iam_role.default
 }
 
+output "cert_data" {
+  value = {
+    "/opt/vault/tls/vault-key.pem"  = local.cert_key
+    "/opt/vault/tls/vault-ca.pem"   = local.cert_chain
+    "/opt/vault/tls/vault-cert.pem" = local.cert_pem
+  }
+  sensitive   = true
+  description = "The values of the certificate, helpful for when mTLS certs need to rotate across nodes.  See docs at docs/rotating_vault_certificates.md."
+}

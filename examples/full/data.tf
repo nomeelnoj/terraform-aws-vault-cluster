@@ -46,3 +46,8 @@ data "aws_iam_roles" "sso_devops" {
   path_prefix = "/aws-reserved/sso.amazonaws.com/"
   name_regex  = "^AWSReservedSSO_DevopsAdmins_.*"
 }
+
+data "aws_iam_roles" "sso_team" {
+  path_prefix = "/aws-reserved/sso.amazonaws.com/"
+  name_regex  = "^AWSReservedSSO_DevopsTeam_.*"
+}

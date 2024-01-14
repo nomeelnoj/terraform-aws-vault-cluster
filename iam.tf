@@ -13,7 +13,7 @@ locals {
         ]
       }
     },
-    { for statement in var.iam_assume_role_policies : statement["sid"] => statement }
+    { for statement in lookup(var.iam, "assume_role_policies", {}) : statement["sid"] => statement }
   )
 
   iam_policy_statements = merge(
@@ -70,7 +70,7 @@ locals {
         resources = ["*"]
       }
     },
-    var.enterprise_license_bucket != null ? {
+    var.enterprise_license["bucket_name"] != null ? {
       s3_enterprise = {
         sid    = "AllowAccessToReadVaultLicenseFromS3"
         effect = "Allow"
@@ -84,13 +84,13 @@ locals {
         ]
       }
     } : null,
-    var.iam_policy_statements
+    var.iam["policy_statements"],
   )
 
   iam_policy_attachments = flatten([
     data.aws_iam_policy.cloudwatch.arn,
     data.aws_iam_policy.ssm.arn,
-    var.iam_policy_attachments
+    lookup(var.iam, "policy_attachments", [])
   ])
 }
 
@@ -121,18 +121,19 @@ data "aws_iam_policy_document" "assume" {
 }
 
 resource "aws_iam_role" "default" {
-  name                 = var.vault_name
-  description          = "For Vault ${var.vault_name} - Managed by Terraform"
-  max_session_duration = var.max_session_duration
+  name                 = var.vault_config["vault_name"]
+  description          = "For Vault ${var.vault_config["vault_name"]} - Managed by Terraform"
+  max_session_duration = lookup(var.iam, "max_session_duration", 3600)
   assume_role_policy   = data.aws_iam_policy_document.assume.json
 
   tags = merge(
     local.tags,
     {
-      Name = var.vault_name
+      Name = var.vault_config["vault_name"]
     }
   )
 }
+
 data "aws_iam_policy" "cloudwatch" {
   name = "CloudWatchAgentServerPolicy"
 }

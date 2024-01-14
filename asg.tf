@@ -1,8 +1,8 @@
 resource "aws_autoscaling_group" "default" {
-  name                = var.vault_name
-  min_size            = var.node_count
-  max_size            = var.node_count
-  desired_capacity    = var.node_count
+  name                = var.vault_config["vault_name"]
+  min_size            = var.server["node_count"]
+  max_size            = var.server["node_count"]
+  desired_capacity    = var.server["node_count"]
   vpc_zone_identifier = var.subnet_ids
   target_group_arns   = [aws_lb_target_group.default.arn]
 
@@ -23,11 +23,16 @@ resource "aws_autoscaling_group" "default" {
     }
   }
 
+  instance_maintenance_policy {
+    min_healthy_percentage = 100
+    max_healthy_percentage = 150
+  }
+
   dynamic "tag" {
     for_each = merge(
       local.tags,
       {
-        Name = "${var.vault_name}-server"
+        Name = "${var.vault_config["vault_name"]}-server"
       },
     )
     content {
