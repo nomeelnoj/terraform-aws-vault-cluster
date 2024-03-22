@@ -17,11 +17,20 @@ apt update
 # Be careful when running updates to ensure that the version you are installing
 # is still there, as rolling nodes with a missing version will cause Vault data loss.
 
-apt install -y \
-  ${vault_binary}=${vault_version} \
-  awscli \
-  jq \
-  unzip
+# We also use snap on Ubuntu Noble since awscli is not available from apt
+if [ "$(lsb_release -cs)" == "noble" ]; then
+  snap install awscli --classic
+  apt install -y \
+    ${vault_binary}=${vault_version} \
+    jq \
+    unzip
+else
+  apt install -y \
+    ${vault_binary}=${vault_version} \
+    awscli \
+    jq \
+    unzip
+fi
 
 echo "Configuring system time"
 timedatectl set-timezone UTC
