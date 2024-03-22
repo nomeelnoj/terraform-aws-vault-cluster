@@ -4,7 +4,7 @@ data "aws_ami" "ubuntu" {
 
   filter {
     name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-${var.server["arch"]}-server-*"]
+    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-${var.server["arch"]}-server*"]
   }
 
   filter {
@@ -13,6 +13,14 @@ data "aws_ami" "ubuntu" {
   }
 
   owners = ["099720109477"] # Canonical
+}
+
+data "aws_ami" "custom" {
+  count = vart.server["ami_id"] != null ? 1 : 0
+  filter {
+    name   = "image-id"
+    values = [var.server["ami_id"]]
+  }
 }
 
 data "cloudinit_config" "user_data" {
@@ -40,7 +48,7 @@ resource "aws_launch_template" "default" {
   ]
 
   block_device_mappings {
-    device_name = "/dev/sda1"
+    device_name = var.server["root_device_name"] != null ? var.server["root_device_name"] : data.aws_ami.ubuntu[0].root_device_name
 
     ebs {
       volume_type           = "gp3"
@@ -56,7 +64,7 @@ resource "aws_launch_template" "default" {
     tags = merge(
       local.tags,
       {
-        Name = "${var.vault_config["vault_name"]}-server:/dev/sda1"
+        Name = "${var.vault_config["vault_name"]}-server:${var.server["root_device_name"] != null ? var.server["root_device_name"] : data.aws_ami.ubuntu[0].root_device_name}"
       }
     )
   }
