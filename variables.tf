@@ -34,7 +34,7 @@ variable "server" {
     create_key_name             = optional(string)
     ssh_public_key              = optional(string)
     key_name                    = optional(string)
-    instance_type               = optional(string, "t4g.medium")
+    instance_type               = optional(string, "m7g.large")
     node_count                  = optional(number, 3)
     ssh_ingress_cidrs           = optional(list(string), [])
     ssh_ingress_security_groups = optional(list(string), [])
