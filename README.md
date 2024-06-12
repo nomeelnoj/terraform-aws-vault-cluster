@@ -15,7 +15,7 @@ Please note that due to the nature of Vault, additional configuration will be re
 - Application Load Balancer
 - Raft Integrated Storage
 - Ephemeral instances -- data is stored on instances but all configuration occurs in `user_data` at boot. Health checks ensure that no more than 1 instance is replaced at a time on `user_data` change to avoid data loss before the cluster can self-replicate the data to the new node
-- `user_data` stored in S3 file to show diffs in `terraform plan` for easier validation of changes
+- `user_data` stored in S3 file to show diffs in `terraform plan` for easier validation of changes; secrets are detected with `issensitive` and cut into a 8 char sha to show changes while avoiding exposure
 - Cloudwatch logging for both operator and audit logs
 - Logrotate since vault's included logrotate does not play well with cloudwatch
 

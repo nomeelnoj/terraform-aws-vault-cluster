@@ -157,7 +157,7 @@ resource "aws_s3_object" "user_data" {
   kms_key_id = var.s3["sse"] == "aws:kms" ? aws_kms_key.default["s3"].arn : null
   content = templatefile("${path.module}/templates/user_data.sh.tpl",
     {
-      for k, v in local.user_data_values : k => k == "cert_key" ? "redacted" : v
+      for k, v in local.user_data_values : k => issensitive(v) ? "redacted: ${k}=${substr(sha256(nonsensitive(v)), 0, 8)}" : v
     }
   )
 }
