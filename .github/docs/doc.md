@@ -17,6 +17,7 @@ Please note that due to the nature of Vault, additional configuration will be re
 - `user_data` stored in S3 file to show diffs in `terraform plan` for easier validation of changes; secrets are detected with `issensitive` and cut into a 8 char sha to show changes while avoiding exposure
 - Cloudwatch logging for both operator and audit logs
 - Logrotate since vault's included logrotate does not play well with cloudwatch
+- Automated snapshots for OSS (with additional configuration from [./extras/base-config](./extras/base-config/README.md)
 
 _**NOTE: Validation of server configurations occurs at boot, so additional configurations may cause boot issues. It is recommended that when creating the cluster or making significant changes that you log into the host and watch `/var/log/user-data.log`**_
 
@@ -112,3 +113,12 @@ You will need to configure the PKI endpoint so that you can re-run the cluster s
 You will need to rotate certs once the PKI backend is configured.  To do so without data loss, follow the steps in [Rotating Vault Certificates](./docs/rotating_vault_certificates.md).
 
 After the initial configuration and the cluster is running with a Vault cert, it will auto-rotate as long as the Terraform is re-run within 30 days of certificate expiration. If the certificate expires, new nodes will not be able to join the cluster, and the certs will have to be replaced using the same process used during initial setup as documented in [./docs/rotating_vault_certificates.md](./docs/rotating_vault_certificates.md).
+
+### Base Config
+
+The [base configuration example](./extras/base-config) is meant only for OSS and will enable the automated daily snapshots the module user_data configures when OSS is chosen as the vault version.
+
+It is extremely bare, meant only for demonstration purposes, as much more configuration will be required to run a Vault cluster. Detailed configuration of Vault is out of scope for this repository.
+
+## Accepted Values
+
