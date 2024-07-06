@@ -1,0 +1,26 @@
+name: Generate Terraform Docs
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - edited
+      - synchronize
+      - reopened
+
+jobs:
+  docs:
+    name: Generate README.md
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Run terraform-docs
+        uses: terraform-docs/gh-actions@main
+        with:
+          working-dir: ${{ github.workspace }}
+          config-file: '.github/docs/.terraform-docs.yml'
+          git-commit-message: 'docs(tf): automated doc generation'
+          git-push-sign-off: true
+          output-file: README.md
+          git-push: "true"

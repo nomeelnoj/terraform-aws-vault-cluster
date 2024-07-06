@@ -1,0 +1,23 @@
+docs:
+- any:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.github/docs/*'
+examples:
+- any:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'examples/**'
+ci:
+- any:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.github/*'
+      - '!.github/docs/*'
+module:
+- any:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '*.tf'
+      - 'templates/*'
+      - '!examples/*.tf'

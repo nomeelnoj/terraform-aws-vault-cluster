@@ -1,0 +1,134 @@
+{
+  "branches": [
+    "main"
+  ],
+  "ci": false,
+  "plugins": [
+    [
+      "@semantic-release/commit-analyzer",
+      {
+        "releaseRules": [
+          {
+            "type": "feat",
+            "release": "minor"
+          },
+          {
+            "type": "fix",
+            "release": "patch"
+          },
+          {
+            "type": "docs",
+            "release": "patch"
+          },
+          {
+            "type": "style",
+            "release": "patch"
+          },
+          {
+            "type": "refactor",
+            "release": "minor"
+          },
+          {
+            "type": "perf",
+            "release": "patch"
+          },
+          {
+            "type": "test",
+            "release": "patch"
+          },
+          {
+            "type": "improvement",
+            "release": "patch"
+          },
+          {
+            "type": "chore",
+            "release": "patch"
+          },
+          {
+            "scope": "no-release",
+            "release": false
+          }
+        ]
+      }
+    ],
+    [
+      "@semantic-release/release-notes-generator",
+      {
+        "preset": "conventionalcommits",
+        "presetConfig": {
+          "types": [
+            {
+              "type": "feat",
+              "section": ":sparkles: Features",
+              "hidden": false
+            },
+            {
+              "type": "fix",
+              "section": ":bug: Fixes",
+              "hidden": false
+            },
+            {
+              "type": "docs",
+              "section": ":memo: Documentation",
+              "hidden": false
+            },
+            {
+              "type": "style",
+              "section": ":barber: Stylization",
+              "hidden": false
+            },
+            {
+              "type": "refactor",
+              "section": ":gear: Refactoring",
+              "hidden": false
+            },
+            {
+              "type": "perf",
+              "section": ":fast_forward: Performance",
+              "hidden": false
+            },
+            {
+              "type": "test",
+              "section": ":white_check_mark: Tests",
+              "hidden": false
+            },
+            {
+              "type": "improvement",
+              "section": ":hammer_and_wrench: Improvements",
+              "hidden": false
+            },
+            {
+              "type": "chore",
+              "section": ":construction_worker: Chores",
+              "hidden": false
+            }
+          ]
+        }
+      }
+    ],
+    [
+      "@semantic-release/github",
+      {
+        "successComment": "This ${issue.pull_request ? 'PR is included' : 'issue has been resolved'} in version ${nextRelease.version} :shipit:",
+        "labels": false,
+        "releasedLabels": false
+      }
+    ],
+    [
+      "@semantic-release/changelog",
+      {
+        "changelogFile": "CHANGELOG.md",
+        "changelogTitle": "# Changelog"
+      }
+    ],
+    [
+      "@semantic-release/git",
+      {
+        "assets": [
+          "CHANGELOG.md"
+        ],
+        "message": "chore(release): version ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+      }
+    ]
+  ]
+}

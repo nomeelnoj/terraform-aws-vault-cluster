@@ -1,0 +1,28 @@
+name: Close stale PRs
+
+on:
+  schedule:
+  - cron: "0 0 * * *"
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/stale@v9
+      with:
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        stale-pr-message: |
+          This PR has not been updated in 10 days and has been marked as stale.
+          If it is not updated in 5 days, it will be closed.
+        exempt-pr-labels: 'wip,on-hold'
+        stale-pr-label: 'stale'
+        close-pr-message: 'This PR was automatically closed due to inactivity'
+        stale-issue-message: |
+          This issue has not been updated in 10 days and has been marked as stale.
+          If it is not updated in 5 days, it will be closed.
+        exempt-issue-labels: 'wip,on-hold'
+        close-issue-message: 'This issue was automatically closed due to inactivity'
+        stale-issue-label: 'stale'
+        days-before-stale: 10
+        days-before-close: 5
